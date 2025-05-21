@@ -3,16 +3,22 @@
   "version": "1.0.0",
   "description": "project for the backend apis for e-commerce webite",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon ./src/index.js",
+    "start": "node ./src/index.js"
   },
   "author": "Abhishek Singh",
   "license": "ISC",
   "dependencies": {
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "mongoose": "^8.15.0",
+    "mongoose": "^8.15.0"
+  },
+  "devDependencies": {
     "nodemon": "^3.1.10"
   }
 }
