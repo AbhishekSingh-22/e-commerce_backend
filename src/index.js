@@ -7,6 +7,9 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import connectDB from "./db/connectDB.js";
+import morgan from "morgan";
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './swagger/swaggerConfig.js';
 
 
 const app = express();
@@ -24,8 +27,18 @@ app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
+app.use(morgan('dev'));
 
 
+
+import authRoutes     from './routes/auth.route.js';
+import productRoutes  from './routes/product.route.js';
+
+app.use('/api/v1/auth',    authRoutes);
+app.use('/api/v1/products', productRoutes);
+
+// swagger endpoint
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 connectDB()
 .then(()=>{
