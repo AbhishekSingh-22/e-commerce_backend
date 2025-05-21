@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
-
-const signToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+import Token from '../models/token.model.js';
+import { signAccessToken, signRefreshToken } from '../utils/authUtils.js';
 
 
 // register
@@ -34,9 +34,7 @@ export const register = async (req, res) => {
     // 5. Create user
     const user = await User.create({ email, password, role });
 
-    // 6. Return JWT
-    const token = signToken(user._id);
-    return res.status(201).json({ message: 'User registered successfully', token });
+    return res.status(201).json({ message: 'User registered successfully'});
 
   } catch (error) {
     console.error('Registration error:', error.message);
@@ -47,32 +45,103 @@ export const register = async (req, res) => {
 
 // login
 export const login = async (req, res) => {
+  const { email, password } = req.body;
+
+  // 1. Validate input
+  if (!email || !password)
+    return res.status(400).json({ message: 'Email and password are required' });
+
   try {
-    const { email, password } = req.body;
-
-    // 1. Validate inputs
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required.' });
-    }
-
-    // 2. Find user
+    // 2. Find user and ensure password is selected
     const user = await User.findOne({ email }).select('+password');
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials.' });
-    }
+    if (!user)
+      return res.status(401).json({ message: 'Invalid credentials' });
 
     // 3. Compare password
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials.' });
-    }
+    if (!isMatch)
+      return res.status(401).json({ message: 'Invalid credentials' });
 
-    // 4. Issue token
-    const token = signToken(user._id);
-    res.status(200).json({ message: 'Login successful', token });
+    // 4. Generate tokens
+    const accessToken = signAccessToken(user._id);
+    const refreshToken = signRefreshToken(user._id);
 
-  } catch (error) {
-    console.error('Login Error:', error.message);
-    res.status(500).json({ message: 'Internal server error.' });
+    if (!refreshToken) {
+  return res.status(500).json({ message: 'Failed to generate refresh token' });
+}
+
+    // 5. Save refresh token (supporting rotation)
+    await Token.create({ userId: user._id, token: refreshToken });
+
+    // 6. Send response
+    return res.status(200).json({
+      accessToken,
+      refreshToken,
+      message: 'Logged in successfully',
+    });
+
+  } catch (err) {
+    console.error('Login error:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
   }
+};
+
+
+export const refreshToken = async (req, res) => {
+  const { refreshToken } = req.body;
+
+  // 1. Check for presence of refresh token
+  if (!refreshToken)
+    return res.status(400).json({ message: 'Refresh token is required' });
+
+  let payload;
+  try {
+    // 2. Verify refresh token
+    payload = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
+  } catch (err) {
+    console.error('JWT verification failed:', err.message);
+    return res.status(403).json({ message: 'Invalid or expired refresh token' });
+  }
+
+  try {
+    // 3. Check if token exists in DB
+    const storedToken = await Token.findOne({ token: refreshToken });
+    if (!storedToken)
+      return res.status(403).json({ message: 'Refresh token not found or already used' });
+
+    // 4. Optional: Verify that user still exists
+    const user = await User.findById(payload.id);
+    if (!user)
+      return res.status(404).json({ message: 'User associated with token not found' });
+
+    // 5. Delete the used refresh token (token rotation)
+    await storedToken.deleteOne();
+
+    // 6. Generate new tokens
+    const newAccessToken = signAccessToken(user._id);
+    const newRefreshToken = signRefreshToken(user._id);
+
+    // 7. Save new refresh token
+    await Token.create({ userId: user._id, token: newRefreshToken });
+
+    // 8. Respond with new tokens
+    return res.json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    });
+
+  } catch (err) {
+    console.error('Token refresh error:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+
+
+export const logout = async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) return res.status(400).json({ message: 'Token required' });
+
+  await Token.findOneAndDelete({ token: refreshToken });
+  res.json({ message: 'Logged out successfully' });
 };

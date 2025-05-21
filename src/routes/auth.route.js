@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { register, login } from '../controllers/auth.controller.js';
+import { register, login, refreshToken, logout } from '../controllers/auth.controller.js';
 
 const router = Router();
 
 /**
  * @swagger
- * /api/auth/register:
+ * /api/v1/auth/register:
  *   post:
  *     summary: Register a new user
  *     tags: [Auth]
@@ -22,7 +22,7 @@ router.post('/register', register);
 
 /**
  * @swagger
- * /api/auth/login:
+ * /api/v1/auth/login:
  *   post:
  *     summary: Login a user
  *     tags: [Auth]
@@ -36,5 +36,10 @@ router.post('/register', register);
  *       200: { description: Logged in }
  */
 router.post('/login', login);
+
+
+router.post('/refresh-token', refreshToken);
+
+router.post('/logout', logout);
 
 export default router;
