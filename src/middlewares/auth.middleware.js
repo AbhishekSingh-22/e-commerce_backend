@@ -5,7 +5,7 @@ export const protect = (req, res, next) => {
   if (!token) return res.status(401).json({ message: 'Token missing' });
 
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = jwt.verify(token, process.env.ACCESS_SECRET);
     next();
   } catch {
     res.status(401).json({ message: 'Invalid token' });

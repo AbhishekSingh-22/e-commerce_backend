@@ -1,10 +1,10 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
+import Token from '../models/token.model.js';
+import { signAccessToken, signRefreshToken } from '../utils/authUtils.js';
 
-const signToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
-
-// register
+// 1. register
 export const register = async (req, res) => {
   try {
     const { email, password, role } = req.body;
@@ -34,9 +34,7 @@ export const register = async (req, res) => {
     // 5. Create user
     const user = await User.create({ email, password, role });
 
-    // 6. Return JWT
-    const token = signToken(user._id);
-    return res.status(201).json({ message: 'User registered successfully', token });
+    return res.status(201).json({ message: 'User registered successfully'});
 
   } catch (error) {
     console.error('Registration error:', error.message);
@@ -45,34 +43,111 @@ export const register = async (req, res) => {
 };
 
 
-// login
+// 2. login
 export const login = async (req, res) => {
+  const { email, password } = req.body;
+
+  // 1. Validate input
+  if (!email || !password)
+    return res.status(400).json({ message: 'Email and password are required' });
+
   try {
-    const { email, password } = req.body;
-
-    // 1. Validate inputs
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required.' });
-    }
-
-    // 2. Find user
+    // 2. Find user and ensure password is selected
     const user = await User.findOne({ email }).select('+password');
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials.' });
-    }
+    if (!user)
+      return res.status(401).json({ message: 'Invalid credentials' });
 
     // 3. Compare password
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials.' });
+    if (!isMatch)
+      return res.status(401).json({ message: 'Invalid credentials' });
+
+    // 4. Generate tokens
+    const accessToken = signAccessToken(user._id);
+    const refreshToken = signRefreshToken(user._id);
+
+    if (!refreshToken) {
+  return res.status(500).json({ message: 'Failed to generate refresh token' });
+}
+
+    // check if token already exist for the user
+    const tokenUser = await Token.findOne(({userId: user._id}));
+    if (tokenUser) {
+      await Token.deleteOne({ _id: tokenUser._id });
+      res.clearCookie('refreshToken');
     }
 
-    // 4. Issue token
-    const token = signToken(user._id);
-    res.status(200).json({ message: 'Login successful', token });
+    // 5. Save refresh token (supporting rotation)
+    await Token.create({ userId: user._id, token: refreshToken });
 
+      // Set refresh token in cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    // 6. Send response
+    return res.status(200).json({
+      accessToken,
+      refreshToken,
+      message: 'Logged in successfully',
+    });
+
+  } catch (err) {
+    console.error('Login error:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+
+// 3. refresh-token
+export const refreshToken = async (req, res) => {
+  const token = req.cookies.refreshToken;
+  if (!token) return res.status(401).json({ message: 'No refresh token' });
+
+  try {
+    const payload = jwt.verify(token, process.env.REFRESH_SECRET);
+
+    const existingToken = await Token.findOne({ token });
+    if (!existingToken) return res.status(403).json({ message: 'Token not found or already used' });
+
+    // Rotate token
+    await existingToken.deleteOne();
+
+    const newAccessToken = signAccessToken(payload.id);
+    const newRefreshToken = signRefreshToken(payload.id);
+
+    await Token.create({ userId: payload.id, token: newRefreshToken });
+
+    res.cookie('refreshToken', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.json({ accessToken: newAccessToken });
+  } catch (err) {
+    console.error('Refresh error:', err.message);
+    return res.status(403).json({ message: 'Invalid or expired refresh token' });
+  }
+};
+
+
+// 4. logout
+export const logout = async (req, res) => {
+  try {
+    const token = req.cookies.refreshToken;
+    if (token) {
+      await Token.deleteOne({ token });
+      res.clearCookie('refreshToken');
+    }
+  
+    res.json({ message: 'Logged out successfully' });
   } catch (error) {
-    console.error('Login Error:', error.message);
-    res.status(500).json({ message: 'Internal server error.' });
+    console.error(error);
+    res.json({message: error});
   }
 };
