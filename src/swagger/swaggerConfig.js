@@ -11,10 +11,14 @@ export default swaggerJsdoc({
       schemas: {
         UserCredentials: {
           type: 'object',
-          required: ['email', 'password'],
+          required: ['name','email', 'password'],
           properties: {
+            name: { type: 'string', example: 'dummyUser'},
             email: { type: 'string', example: 'user@example.com' },
-            password: { type: 'string', example: 'secret123' }
+            password: { type: 'string', example: 'secret123' },
+            address: {type: 'string', example: 'Building NewPeace, Big Lane, India'},
+            phone: {type: 'string', example: '9931458341'},
+            role: {type: 'string', example: 'customer'}
           }
         }
       }
