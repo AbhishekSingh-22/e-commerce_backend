@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"  # maps container port to host
+    env_file:
+      - .env  # loads environment variables
+    depends_on:
+      - mongo  # wait for mongo container
+    volumes:
+      - .:/app  # optional: sync your local files into the container
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongo-data:

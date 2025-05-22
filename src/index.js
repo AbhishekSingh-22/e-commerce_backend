@@ -9,7 +9,7 @@ import cookieParser from "cookie-parser";
 import connectDB from "./db/connectDB.js";
 import morgan from "morgan";
 import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from './swagger/swaggerConfig.js';
+import swaggerSpec from '../swagger/swaggerConfig.js';
 
 
 const app = express();
