@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { register, login, refreshToken, logout } from '../controllers/auth.controller.js';
+import { register, login, refreshToken, logout, updateUser, deleteUser } from '../controllers/auth.controller.js';
+import protect from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
@@ -36,10 +37,11 @@ router.post('/register', register);
  *       200: { description: Logged in }
  */
 router.post('/login', login);
-
-
 router.post('/refresh-token', refreshToken);
-
 router.post('/logout', logout);
+
+router.put('/update', protect, updateUser);
+
+router.delete('/delete', protect, deleteUser);
 
 export default router;

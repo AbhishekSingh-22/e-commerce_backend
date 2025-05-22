@@ -7,10 +7,10 @@ import { signAccessToken, signRefreshToken } from '../utils/authUtils.js';
 // 1. register
 export const register = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { name, email, password, role } = req.body;
 
     // 1. Validate required fields
-    if (!email || !password) {
+    if (!email || !password || !name) {
       return res.status(400).json({ message: 'Email and password are required.' });
     }
 
@@ -32,9 +32,9 @@ export const register = async (req, res) => {
     }
 
     // 5. Create user
-    const user = await User.create({ email, password, role });
+    const user = await User.create({name, email, password, role });
 
-    return res.status(201).json({ message: 'User registered successfully'});
+    return res.status(201).json({ message: 'User registered successfully', registerdUser : user});
 
   } catch (error) {
     console.error('Registration error:', error.message);
@@ -135,8 +135,63 @@ export const refreshToken = async (req, res) => {
   }
 };
 
+// 4. update user
+export const updateUser = async (req, res) => {
+  const user = await User.findById(req.user._id);
 
-// 4. logout
+  if (!user) return res.status(404).json({ message: 'User not found' });
+
+  // Update only allowed fields
+  try {
+    const { name, email, address, phone } = req.body;
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (address) user.address = address;
+    if (phone) user.phone = phone;
+  } catch (error) {
+    console.error(error);
+    return res.json({message: "Invalid input body"});
+  }
+
+  // Save updated user
+  try {
+    const updatedUser = await user.save();
+    res.json({payload: 
+      {
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        address: updatedUser.address,
+        phone: updatedUser.phone,
+      },
+      message: "user details updated!"
+      });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error updating user' });
+  }
+};
+
+
+// 5. delete user
+export const deleteUser = async (req, res) => {
+  try {
+    const deletedUser = await User.findByIdAndDelete(req.user._id);
+    if (!deleteUser) throw new Error("User was not able to be deleted");
+    res.status(200).json({
+      message: "User deleted successfully",
+      deletedUser
+    });
+  } catch (error) {
+    console.error(error);
+    res.json({
+      message: error
+    });
+  }
+}
+
+
+// 6. logout
 export const logout = async (req, res) => {
   try {
     const token = req.cookies.refreshToken;
