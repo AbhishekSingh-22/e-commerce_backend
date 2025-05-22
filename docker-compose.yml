@@ -6,7 +6,7 @@ services:
     ports:
       - "3000:3000"  # maps container port to host
     env_file:
-      - .env  # loads environment variables
+      - .env.example  # loads environment variables
     depends_on:
       - mongo  # wait for mongo container
     volumes:
