@@ -176,15 +176,23 @@ export const updateUser = async (req, res) => {
 // 5. delete user
 export const deleteUser = async (req, res) => {
   try {
+    // clear refresh token of the user and logout
+    const token = req.cookies.refreshToken;
+    if (token) {
+      await Token.deleteMany({ userId: req.user._id});
+      res.clearCookie('refreshToken');
+    }
+
+    // delete the user
     const deletedUser = await User.findByIdAndDelete(req.user._id);
-    if (!deleteUser) throw new Error("User was not able to be deleted");
+    if (!deletedUser) throw new Error("User was not able to be deleted");
     res.status(200).json({
       message: "User deleted successfully",
       deletedUser
     });
   } catch (error) {
     console.error(error);
-    res.json({
+    res.status(500).json({
       message: error
     });
   }

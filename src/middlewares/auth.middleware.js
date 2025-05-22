@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js'
+import rateLimit from 'express-rate-limit';
 
 export const protect = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -17,4 +18,13 @@ export const protect = async (req, res, next) => {
   }
 };
 
-export default protect;
+
+export const authRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1min
+  max: 5, // limit each IP to 5 requests per windowMs
+  message: {
+    message: 'Too many attempts from this IP, please try again after 1 minute'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false,  // Disable the `X-RateLimit-*` headers
+});
