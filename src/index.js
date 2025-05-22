@@ -38,7 +38,14 @@ app.use('/api/v1/auth',    authRoutes);
 app.use('/api/v1/products', productRoutes);
 
 // swagger endpoint
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api-docs', (req, res, next) => {
+  swaggerSpec.servers = [
+    {
+      url: `${req.protocol}://${req.get('host')}`,
+    },
+  ];
+  next();
+}, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 connectDB()
 .then(()=>{

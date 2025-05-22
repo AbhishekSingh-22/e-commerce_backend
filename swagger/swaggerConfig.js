@@ -23,8 +23,7 @@ export default swaggerJsdoc({
         }
       }
     },
-    security: [{ bearerAuth: [] }],
-    servers: [{ url: 'http://localhost:3000' }]
+    security: [{ bearerAuth: [] }]
   },
   apis: ['./src/routes/*.js']
 });
