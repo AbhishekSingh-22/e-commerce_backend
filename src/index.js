@@ -10,6 +10,7 @@ import connectDB from "./db/connectDB.js";
 import morgan from "morgan";
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from '../swagger/swaggerConfig.js';
+import { health } from "./controllers/health.controller.js";
 
 
 const app = express();
@@ -36,6 +37,8 @@ import productRoutes  from './routes/product.route.js';
 
 app.use('/api/v1/auth',    authRoutes);
 app.use('/api/v1/products', productRoutes);
+
+app.get('/health', health);     // added a health route
 
 // swagger endpoint
 app.use('/api-docs', (req, res, next) => {
